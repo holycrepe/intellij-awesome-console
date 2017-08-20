@@ -24,6 +24,7 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 	public boolean LIMIT_LINE_LENGTH = true;
 	public int LINE_MAX_LENGTH = 1024;
 	public boolean SEARCH_URLS = true;
+	public boolean SEARCH_FILES = true;
 	public String[] PROJECT_SOURCE_PATHS = "".split(" ");
 	public String[] EXTENSIONS_TO_ALWAYS_MATCH = "py js ts".split(" ");
 	public boolean RELAXED_SOURCE_MATCHING = true;

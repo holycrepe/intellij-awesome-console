@@ -7,7 +7,9 @@ import com.intellij.execution.filters.HyperlinkInfoFactory;
 import com.intellij.ide.browsers.OpenUrlHyperlinkInfo;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectRootManager;
+import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.diagnostic.Logger;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -18,7 +20,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AwesomeLinkFilter implements Filter {
-	private static final Pattern FILE_PATTERN = Pattern.compile("((?:[a-z]:[\\\\/])?[\\w][\\w/\\-\\\\\\. ]*\\\\.[\\w\\-\\\\\\. ]+)((:|(\"?, line ))(\\d+))?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    // Unescaped pattern: (?<filename>(?<drive>[a-z]:[\\/])?(?<folder>[\w][\w\\/.() -]*[\\/])(?<name>[\w.() -]+)\.(?<extension>[\w\\/() -]+))(?:(:|"?, line )(?<lineno>\d+))?
+    private static final Pattern FILE_PATTERN = Pattern.compile("(?<filename>(?<drive>[a-z]:[\\\\/])?(?<folder>[\\w][\\w\\\\/.() -]*[\\\\/])(?<name>[\\w.() -]+)\\.(?<extension>[\\w\\\\/() -]+))(?:(:|\"?, line )(?<lineno>\\d+))?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 	private static final Pattern URL_PATTERN = Pattern.compile("((((ftp)|(file)|(https?)):/)?/[-_.!~*\\\\'()a-zA-Z0-9;\\\\/?:\\\\@&=+\\\\$,%#]+)");
 	private final AwesomeConsoleConfig config;
 	private final Map<String, List<VirtualFile>> fileCache;
@@ -28,8 +31,19 @@ public class AwesomeLinkFilter implements Filter {
 	private final Matcher fileMatcher;
 	private final Matcher urlMatcher;
 	private ProjectRootManager projectRootManager;
+    private static final Logger log = Logger.getInstance("AwesomeConsoleGeneral");
+    private static final Logger logCache = Logger.getInstance("AwesomeConsoleCache");
+    private static final LocalFileSystem lfs = LocalFileSystem.getInstance();
 
-	public AwesomeLinkFilter(final Project project) {
+    public static String padRight(String s, int n) {
+        return String.format("%1$-" + n + "s", s);
+    }
+
+    public static String normalizePath(String s) {
+        return s.replace("file://", "").replace( '/', File.separatorChar).replace('\\', File.separatorChar);
+    }
+
+    public AwesomeLinkFilter(final Project project) {
 		this.project = project;
 		this.fileCache = new HashMap<>();
 		this.fileBaseCache = new HashMap<>();
@@ -41,6 +55,8 @@ public class AwesomeLinkFilter implements Filter {
 
 		createFileCache();
 	}
+
+
 
 	@Override
 	public Result applyFilter(final String line, final int endPoint) {
@@ -110,51 +126,58 @@ public class AwesomeLinkFilter implements Filter {
 
 	public List<ResultItem> getResultItemsFile(final String line, final int startPoint) {
 		final List<ResultItem> results = new ArrayList<>();
+		final boolean debug = (line.contains(".js") || line.contains(".ts")) && line.contains("apEMP") && line.contains("error");
 		fileMatcher.reset(line);
 		final HyperlinkInfoFactory hyperlinkInfoFactory = HyperlinkInfoFactory.getInstance();
 		while (fileMatcher.find()) {
-			final String match = fileMatcher.group(1);
+			final String match =  normalizePath(fileMatcher.group("filename"));
 			List<VirtualFile> matchingFiles = fileCache.get(match);
-			if (null == matchingFiles) {
-				matchingFiles = getResultItemsFileFromBasename(match);
-				if (null == matchingFiles || 0 >= matchingFiles.size()) {
-					continue;
+            final String matchName = fileMatcher.group("name");
+            final String matchExtension = fileMatcher.group("extension");
+			if (null == matchingFiles || 0 >= matchingFiles.size()) {
+				matchingFiles = getResultItemsFileFromBasename(matchName);
+                if (0 >= matchingFiles.size()) {
+                    if (!config.alwaysMatchExtension(matchExtension)) {
+                        continue;
+                    }
+                    VirtualFile newFile = lfs.findFileByPath(match);
+                    if (newFile == null) {
+                        continue;
+                    }
+                    matchingFiles.add(newFile);
 				}
-			}
-
-			if (0 >= matchingFiles.size()) {
-				continue;
 			}
 			final HyperlinkInfo linkInfo = hyperlinkInfoFactory.createMultipleFilesHyperlinkInfo(
 					matchingFiles,
-					fileMatcher.group(5) == null ? 0 : Integer.parseInt(fileMatcher.group(5)) - 1,
+					fileMatcher.group("lineno") == null ? 0 : Integer.parseInt(fileMatcher.group("lineno")) - 1,
 					project
 			);
-			results.add(
-					new Result(
-							startPoint + fileMatcher.start(),
-							startPoint + fileMatcher.end(),
-							linkInfo)
-			);
+			final Result newResult = new Result(
+                    startPoint + fileMatcher.start(),
+                    startPoint + fileMatcher.end(),
+                    linkInfo);
+            results.add(newResult);
 		}
 		return results;
 	}
 
-	public List<VirtualFile> getResultItemsFileFromBasename(final String match) {
-		final ArrayList<VirtualFile> matches = new ArrayList<>();
+
+
+	public List<VirtualFile> getResultItemsFileFromBasename(String matchFileName) {
+        final ArrayList<VirtualFile> matches = new ArrayList<>();
 		final char packageSeparator = '.';
-		final int index = match.lastIndexOf(packageSeparator);
-		if (-1 >= index) {
-			return matches;
+        String basename = matchFileName;
+        final int index = matchFileName.lastIndexOf(packageSeparator);
+		if (-1 < index) {
+			basename = matchFileName.substring(index + 1);
 		}
-		final String basename = match.substring(index + 1);
 		if (0 >= basename.length()) {
 			return matches;
 		}
 		if (!fileBaseCache.containsKey(basename)) {
 			return matches;
 		}
-		final String path = match.substring(0, index).replace(packageSeparator, File.separatorChar);
+		final String path = (index == -1 ? matchFileName : matchFileName.substring(0, index)).replace(packageSeparator, File.separatorChar);
 		for (final VirtualFile file : fileBaseCache.get(basename)) {
 			final VirtualFile parent = file.getParent();
 			if (null == parent) {
@@ -176,16 +199,27 @@ public class AwesomeLinkFilter implements Filter {
 		final VirtualFile[] contentSourceRoots = projectRootManager.getContentSourceRoots();
 		final List<String> roots = new ArrayList<>();
 		for (final VirtualFile root : contentSourceRoots) {
-			roots.add(root.getPath());
+            final String path = normalizePath(root.getPath());
+			log.error("Source Root: " + path);
+			roots.add(path);
 		}
 		return roots;
 	}
 
-	private boolean matchSource(final String parent, final String path) {
-		for (final String srcRoot : srcRoots) {
-			if ((srcRoot + File.separatorChar + path).equals(parent)) {
-				return true;
-			}
+	private boolean matchSource(String parent, String path) {
+		parent = normalizePath(parent);
+        path = normalizePath(path);
+        for (final String srcRoot : srcRoots) {
+            if (config.RELAXED_SOURCE_MATCHING) {
+                if (parent.startsWith(srcRoot + File.separatorChar + path)) {
+                    return true;
+                }
+            }
+            else {
+                if ((srcRoot + File.separatorChar + path).equals(parent)) {
+                    return true;
+                }
+            }
 		}
 		return false;
 	}

@@ -1,11 +1,15 @@
 package awesome.console.config;
 
+import org.apache.commons.lang.StringUtils;
+
 import javax.swing.*;
 import javax.swing.text.NumberFormatter;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.text.DecimalFormat;
+
+import static java.lang.String.join;
 
 public class AwesomeConsoleConfigForm {
 	private static final boolean DEFAULT_SPLIT_ON_LIMIT = false;
@@ -18,6 +22,8 @@ public class AwesomeConsoleConfigForm {
 	public JFormattedTextField maxLengthTextField;
 	public JCheckBox matchLinesLongerThanCheckBox;
 	public JCheckBox searchForURLsFileCheckBox;
+	private JTextField extensionsToAlwaysMatch;
+	private JTextArea projectSourcePaths;
 
 	private void createUIComponents() {
 		setupLineLimit();
@@ -91,5 +97,25 @@ public class AwesomeConsoleConfigForm {
 				searchForURLsFileCheckBox.setSelected(DEFAULT_SEARCH_URLS);
 			}
 		});
+	}
+	public String[] getAlwaysMatchExtensionsArray() {
+		return extensionsToAlwaysMatch.getText().split("[ ;.\\|]+");
+	}
+	public String[] getProjectSourcePathsArray() {
+		return projectSourcePaths.getText().split("[\r\n]+");
+	}
+	public void saveData(AwesomeConsoleConfig data) {
+		data.EXTENSIONS_TO_ALWAYS_MATCH = getAlwaysMatchExtensionsArray();
+		data.PROJECT_SOURCE_PATHS = getProjectSourcePathsArray();
+	}
+
+	public void loadData(AwesomeConsoleConfig data) {
+		extensionsToAlwaysMatch.setText(StringUtils.join(data.EXTENSIONS_TO_ALWAYS_MATCH, ";"));
+		projectSourcePaths.setText(StringUtils.join(data.PROJECT_SOURCE_PATHS, "\r\n"));
+	}
+
+	public boolean isModified(AwesomeConsoleConfig data) {
+		return (data.EXTENSIONS_TO_ALWAYS_MATCH != getAlwaysMatchExtensionsArray()
+				|| data.PROJECT_SOURCE_PATHS != getProjectSourcePathsArray());
 	}
 }

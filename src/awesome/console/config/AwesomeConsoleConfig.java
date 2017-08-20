@@ -70,6 +70,7 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 		form.matchLinesLongerThanCheckBox.setSelected(SPLIT_ON_LIMIT);
 
 		form.searchForURLsFileCheckBox.setSelected(SEARCH_URLS);
+		form.searchForFilesCheckBox.setSelected(SEARCH_FILES);
 
 		form.maxLengthTextField.setText(String.valueOf(LINE_MAX_LENGTH));
 		form.maxLengthTextField.setEnabled(LIMIT_LINE_LENGTH);
@@ -120,6 +121,7 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 				|| len != LINE_MAX_LENGTH
 				|| form.matchLinesLongerThanCheckBox.isSelected() != SPLIT_ON_LIMIT
 				|| form.searchForURLsFileCheckBox.isSelected() != SEARCH_URLS
+				|| form.searchForFilesCheckBox.isSelected() != SEARCH_FILES
                 || form.isModified(this);
 	}
 
@@ -145,6 +147,7 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 		LINE_MAX_LENGTH = i;
 		SPLIT_ON_LIMIT = form.matchLinesLongerThanCheckBox.isSelected();
 		SEARCH_URLS = form.searchForURLsFileCheckBox.isSelected();
+		SEARCH_FILES = form.searchForFilesCheckBox.isSelected();
         form.saveData(this);
 		loadState(this);
 	}

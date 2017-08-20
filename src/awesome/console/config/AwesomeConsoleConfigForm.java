@@ -16,19 +16,22 @@ public class AwesomeConsoleConfigForm {
 	private static final boolean DEFAULT_LIMIT_LINE_LENGTH = true;
 	private static final int DEFAULT_LINE_MAX_LENGTH = 1024;
 	private static final boolean DEFAULT_SEARCH_URLS = true;
+	private static final boolean DEFAULT_SEARCH_FILES = true;
 
 	public JPanel mainpanel;
 	public JCheckBox limitLineMatchingByCheckBox;
 	public JFormattedTextField maxLengthTextField;
 	public JCheckBox matchLinesLongerThanCheckBox;
 	public JCheckBox searchForURLsFileCheckBox;
+	public JCheckBox searchForFilesCheckBox;
 	private JTextField extensionsToAlwaysMatch;
 	private JTextArea projectSourcePaths;
 
-	private void createUIComponents() {
+    private void createUIComponents() {
 		setupLineLimit();
 		setupSplitLineIntoChunk();
 		setupMatchURLs();
+		setupMatchFiles();
 	}
 
 	private void setupLineLimit() {
@@ -95,6 +98,21 @@ public class AwesomeConsoleConfigForm {
 			@Override
 			public void actionPerformed(final ActionEvent e) {
 				searchForURLsFileCheckBox.setSelected(DEFAULT_SEARCH_URLS);
+			}
+		});
+	}
+	private void setupMatchFiles() {
+		searchForFilesCheckBox = new JCheckBox("searchForFilesCheckBox");
+		searchForFilesCheckBox.setToolTipText("Uncheck if you do not want files parsed from the console.");
+		JPopupMenu popup = new JPopupMenu("Defaults");
+		searchForFilesCheckBox.setComponentPopupMenu(popup);
+
+		final JMenuItem itm = popup.add("Restore defaults");
+		itm.setMnemonic(KeyEvent.VK_R);
+		itm.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(final ActionEvent e) {
+				searchForFilesCheckBox.setSelected(DEFAULT_SEARCH_FILES);
 			}
 		});
 	}

@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import java.util.Arrays;
 
 @State(
 		name = "Awesome Console Config",
@@ -23,6 +24,19 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 	public boolean LIMIT_LINE_LENGTH = true;
 	public int LINE_MAX_LENGTH = 1024;
 	public boolean SEARCH_URLS = true;
+	public String[] PROJECT_SOURCE_PATHS = "".split(" ");
+	public String[] EXTENSIONS_TO_ALWAYS_MATCH = "py js ts".split(" ");
+	public boolean RELAXED_SOURCE_MATCHING = true;
+    private String extensionsToAlwaysMatch;
+    private String projectSourcePaths;
+
+    public boolean alwaysMatchExtension(final String extension) {
+        return Arrays.asList(EXTENSIONS_TO_ALWAYS_MATCH).contains(extension);
+//        for (String s : EXTENSIONS_TO_ALWAYS_MATCH) {
+//            if (s.equals(extension)) return true;
+//        }
+//        return false;
+    }
 
 	@Transient
 	private AwesomeConsoleConfigForm form;
@@ -59,6 +73,7 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 		form.maxLengthTextField.setText(String.valueOf(LINE_MAX_LENGTH));
 		form.maxLengthTextField.setEnabled(LIMIT_LINE_LENGTH);
 		form.maxLengthTextField.setEditable(LIMIT_LINE_LENGTH);
+        form.loadData(this);
 	}
 
 	private void showErrorDialog() {
@@ -103,7 +118,8 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 		return form.limitLineMatchingByCheckBox.isSelected() != LIMIT_LINE_LENGTH
 				|| len != LINE_MAX_LENGTH
 				|| form.matchLinesLongerThanCheckBox.isSelected() != SPLIT_ON_LIMIT
-				|| form.searchForURLsFileCheckBox.isSelected() != SEARCH_URLS;
+				|| form.searchForURLsFileCheckBox.isSelected() != SEARCH_URLS
+                || form.isModified(this);
 	}
 
 	@Override
@@ -128,6 +144,7 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 		LINE_MAX_LENGTH = i;
 		SPLIT_ON_LIMIT = form.matchLinesLongerThanCheckBox.isSelected();
 		SEARCH_URLS = form.searchForURLsFileCheckBox.isSelected();
+        form.saveData(this);
 		loadState(this);
 	}
 
@@ -157,4 +174,20 @@ public class AwesomeConsoleConfig implements PersistentStateComponent<AwesomeCon
 	public String getComponentName() {
 		return "Awesome Console";
 	}
+
+    public String getExtensionsToAlwaysMatch() {
+        return extensionsToAlwaysMatch;
+    }
+
+    public void setExtensionsToAlwaysMatch(final String extensionsToAlwaysMatch) {
+        this.extensionsToAlwaysMatch = extensionsToAlwaysMatch;
+    }
+
+    public String getProjectSourcePaths() {
+        return projectSourcePaths;
+    }
+
+    public void setProjectSourcePaths(final String projectSourcePaths) {
+        this.projectSourcePaths = projectSourcePaths;
+    }
 }
